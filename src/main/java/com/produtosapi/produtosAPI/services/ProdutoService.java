@@ -1,0 +1,48 @@
+package com.produtosapi.produtosAPI.services;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.produtosapi.produtosAPI.models.Produto;
+import com.produtosapi.produtosAPI.repositories.ProdutoRepository;
+
+
+@Service
+public class ProdutoService {
+    
+    @Autowired
+    private ProdutoRepository produtoRepository;
+    
+    
+    public Produto salvar(Produto produto) {
+        return this.produtoRepository.save(produto);
+    }
+    
+    
+    public List<Produto> listar() {
+        List<Produto> listaProdutos = this.produtoRepository.findAll();
+        return listaProdutos;
+    }
+    
+    public Produto ObterProdutoPorID(Long id) {
+        Produto produto = this.produtoRepository.getReferenceById(id);
+        return produto;
+    }
+    
+    public Produto atualizarProdutoPorID(Long id ,Produto produtoNovo) {
+        Produto produto = this.ObterProdutoPorID(id);
+        
+        produto.setNome(produtoNovo.getNome());
+        produto.setDescricao(produtoNovo.getDescricao());
+        produto.setPreco(produtoNovo.getPreco());
+        produto.setQuantidadeEstoque(produtoNovo.getQuantidadeEstoque());
+        
+        return this.salvar(produto);
+    }
+    
+    public void deletarProduto(Long id) {
+        this.produtoRepository.deleteById(id);
+    }
+}
