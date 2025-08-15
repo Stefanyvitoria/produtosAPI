@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.produtosapi.produtosAPI.models.Produto;
@@ -37,10 +38,8 @@ public class ProdutoController {
     }
     
     @GetMapping()
-    public ResponseEntity<List<Produto>> getProdutos() {
-        
-        List<Produto> listProdutos = this.produtoService.listar();
-        
+    public ResponseEntity<List<Produto>> getProdutos(@RequestParam(required = false) String nome) {
+        List<Produto> listProdutos = this.produtoService.listar(nome);
         return ResponseEntity.ok(listProdutos);
     }
     

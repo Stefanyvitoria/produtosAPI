@@ -20,10 +20,17 @@ public class ProdutoService {
         return this.produtoRepository.save(produto);
     }
     
-    
-    public List<Produto> listar() {
-        List<Produto> listaProdutos = this.produtoRepository.findAll();
+    public List<Produto> listar(String nome) {
+        
+        List<Produto> listaProdutos;
+        
+        if (nome != null && !nome.isBlank() ) {
+            listaProdutos = this.produtoRepository.findByNomeContainingIgnoreCase(nome);
+        } else {
+            listaProdutos = this.produtoRepository.findAll();
+        }
         return listaProdutos;
+        
     }
     
     public Produto ObterProdutoPorID(Long id) {
