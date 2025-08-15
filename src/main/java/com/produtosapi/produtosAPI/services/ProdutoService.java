@@ -34,10 +34,10 @@ public class ProdutoService {
     public Produto atualizarProdutoPorID(Long id ,Produto produtoNovo) {
         Produto produto = this.ObterProdutoPorID(id);
         
-        produto.setNome(produtoNovo.getNome());
-        produto.setDescricao(produtoNovo.getDescricao());
-        produto.setPreco(produtoNovo.getPreco());
-        produto.setQuantidadeEstoque(produtoNovo.getQuantidadeEstoque());
+        if (produtoNovo.getNome() != null) produto.setNome(produtoNovo.getNome());
+        if (produtoNovo.getDescricao() != null) produto.setDescricao(produtoNovo.getDescricao());
+        if (produtoNovo.getPreco() != null) produto.setPreco(produtoNovo.getPreco());
+        if (produtoNovo.getQuantidadeEstoque() != null) produto.setQuantidadeEstoque(produtoNovo.getQuantidadeEstoque());
         
         return this.salvar(produto);
     }

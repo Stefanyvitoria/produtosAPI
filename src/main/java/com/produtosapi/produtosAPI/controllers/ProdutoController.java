@@ -51,7 +51,7 @@ public class ProdutoController {
     }
     
     @PutMapping("/{id}")
-    public ResponseEntity<Produto> putProduto(@PathVariable Long id, @Valid @RequestBody Produto produto) {
+    public ResponseEntity<Produto> putProduto(@PathVariable Long id, @RequestBody Produto produto) {
         Produto produtoAtualizado = this.produtoService.atualizarProdutoPorID(id, produto);
         return ResponseEntity.ok(produtoAtualizado);
     }
