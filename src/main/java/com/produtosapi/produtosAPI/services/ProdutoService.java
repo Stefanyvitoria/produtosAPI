@@ -50,7 +50,7 @@ public class ProdutoService {
     }
     
     public Produto ObterProdutoPorID(Long id) {
-        Produto produto = this.produtoRepository.getReferenceById(id);
+        Produto produto = this.produtoRepository.findById(id).orElse(new Produto());
         return produto;
     }
     
