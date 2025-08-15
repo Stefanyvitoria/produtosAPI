@@ -38,8 +38,11 @@ public class ProdutoController {
     }
     
     @GetMapping()
-    public ResponseEntity<List<Produto>> getProdutos(@RequestParam(required = false) String nome) {
-        List<Produto> listProdutos = this.produtoService.listar(nome);
+    public ResponseEntity<List<Produto>> getProdutos(
+        @RequestParam(required = false) String nome,
+        @RequestParam(required = false) String ordemPreco
+    ) {
+        List<Produto> listProdutos = this.produtoService.listar(nome, ordemPreco);
         return ResponseEntity.ok(listProdutos);
     }
     
