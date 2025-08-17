@@ -2,9 +2,11 @@ package com.produtosapi.produtosAPI.controllers;
 
 import java.net.URI;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import com.produtosapi.produtosAPI.dto.ProdutoDTO;
 import com.produtosapi.produtosAPI.dto.ProdutoUpdateDTO;
+import com.produtosapi.produtosAPI.dto.ResponseAPI;
 import com.produtosapi.produtosAPI.models.Produto;
 import com.produtosapi.produtosAPI.services.ProdutoService;
 import com.produtosapi.produtosAPI.security.SecurityConfig;
@@ -50,7 +53,7 @@ public class ProdutoController {
                 description = "Produto criado com sucesso.",
                 content = @Content(
                     mediaType = "application/json",
-                    schema = @Schema(implementation = Produto.class)
+                    schema = @Schema(implementation = ResponseAPI.class)
             )),
             @ApiResponse(
                 responseCode = "400",
@@ -58,14 +61,20 @@ public class ProdutoController {
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Map.class
+                        implementation = ResponseAPI.class
                     )
                 )
+            ),
+            @ApiResponse(
+                responseCode = "409",
+                description = "Conflito de produtos.",
+                content = @Content(mediaType = "application/json",
+                schema = @Schema(implementation = ResponseAPI.class))
             )
         }
     )
     @PostMapping()
-    public ResponseEntity<Produto> postProdutos(
+    public ResponseEntity<ResponseAPI<Produto>> postProdutos(
         @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do produto para criação.",
             required = true,
@@ -77,15 +86,32 @@ public class ProdutoController {
         )
         @Valid @RequestBody ProdutoDTO produtoRequest
     ) {
-        Produto produtoCriado = this.produtoService.salvar(produtoRequest.toProduto());
+        ResponseAPI<Produto> responseAPI = new ResponseAPI<>();
         
-        URI location = ServletUriComponentsBuilder
-            .fromCurrentRequest()
-            .path("/{id}")
-            .buildAndExpand(produtoCriado.getId())
-            .toUri();
+        try {
+            Produto produtoCriado = this.produtoService.salvar(produtoRequest.toProduto());
+            
+            URI location = ServletUriComponentsBuilder
+                .fromCurrentRequest()
+                .path("/{id}")
+                .buildAndExpand(produtoCriado.getId())
+                .toUri();
 
-        return ResponseEntity.created(location).body(produtoCriado);
+            responseAPI.setCode(HttpStatus.CREATED.value());
+            responseAPI.setStatus("sucesso");
+            responseAPI.setMessage("Produto criado com sucesso!");
+            responseAPI.setData(produtoCriado);
+            
+            return ResponseEntity.created(location).body(responseAPI);
+        
+        } catch (DataIntegrityViolationException e) {
+            responseAPI.setCode(HttpStatus.CONFLICT.value());
+            responseAPI.setStatus("erro");
+            responseAPI.setMessage("Produto já existe no banco!");
+            
+            return ResponseEntity.status(HttpStatus.CONFLICT.value()).body(responseAPI);
+        }
+        
     }
     
     
@@ -99,24 +125,24 @@ public class ProdutoController {
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Produto[].class
+                        implementation = ResponseAPI.class
                     )
                 )
             ),
             @ApiResponse(
-                responseCode = "204", // TODO: Tratar o caso de não vir nenhum produto
-                description = "Nenhum produto encontrado para os filtros aplicados",
+                responseCode = "404",
+                description = "Nenhum produto encontrado para os filtros aplicados.",
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Map.class
+                        implementation = ResponseAPI.class
                     )
                 )
             )
         }
     )
     @GetMapping()
-    public ResponseEntity<List<Produto>> getProdutos(
+    public ResponseEntity<ResponseAPI<List<Produto>>> getProdutos(
         @Parameter(
             description = "Filtro por nome do produto (case insensitive)" // Validar case insensitive
         )
@@ -126,8 +152,27 @@ public class ProdutoController {
         )
         @RequestParam(required = false) String ordemPreco
     ) {
-        List<Produto> listProdutos = this.produtoService.listar(nome, ordemPreco);
-        return ResponseEntity.ok(listProdutos);
+        ResponseAPI<List<Produto>> responseAPI = new ResponseAPI<>();
+        
+        try {
+            List<Produto> listProdutos = this.produtoService.listar(nome, ordemPreco);
+            
+            responseAPI.setCode(HttpStatus.OK.value());
+            responseAPI.setStatus("sucesso");
+            responseAPI.setMessage("Consulta realizada com sucesso!");
+            responseAPI.setData(listProdutos);
+            
+            return ResponseEntity.ok().body(responseAPI);
+            
+        } catch (NotFoundException e) {
+            
+            responseAPI.setCode(HttpStatus.NOT_FOUND.value());
+            responseAPI.setStatus("erro");
+            responseAPI.setMessage("Nenhum produto encontrado!");
+            
+            return ResponseEntity.status(HttpStatus.NOT_FOUND.value()).body(responseAPI);
+        }
+
     }
     
     
@@ -141,30 +186,49 @@ public class ProdutoController {
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Produto.class
+                        implementation = ResponseAPI.class
                     )
                 )
             ),
             @ApiResponse(
                 responseCode = "404",
-                description = "Produto não encontrado para o ID informado.", // TODO: fazer o tratamento
+                description = "Produto não encontrado para o ID informado.",
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Map.class
+                        implementation = ResponseAPI.class
                     )
                 )
             )
         }
     )
     @GetMapping("/{id}")
-    public ResponseEntity<Produto> getProdutoPorId(
+    public ResponseEntity<ResponseAPI<Produto>> getProdutoPorId(
         @Parameter(
             description = "ID do produto a ser buscado."
         )
-        @PathVariable Long id) {
-        Produto produto = this.produtoService.ObterProdutoPorID(id);
-        return ResponseEntity.ok(produto);
+        @PathVariable Long id
+    ) {
+        ResponseAPI<Produto> responseAPI = new ResponseAPI<>();
+        
+        try {
+            Produto produto = this.produtoService.obterProdutoPorID(id);
+            
+            responseAPI.setCode(HttpStatus.OK.value());
+            responseAPI.setStatus("sucesso");
+            responseAPI.setMessage("Consulta realizada com sucesso!");
+            responseAPI.setData(produto);
+            
+            return ResponseEntity.ok().body(responseAPI);
+            
+        } catch (NotFoundException e) {
+            
+            responseAPI.setCode(HttpStatus.NOT_FOUND.value());
+            responseAPI.setStatus("erro");
+            responseAPI.setMessage("Produto não encontrado!");
+            
+            return ResponseEntity.status(HttpStatus.NOT_FOUND.value()).body(responseAPI);
+        }
     }
     
     
@@ -178,7 +242,7 @@ public class ProdutoController {
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Produto.class
+                        implementation = ResponseAPI.class
                     )
                 )
             ),
@@ -188,24 +252,24 @@ public class ProdutoController {
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Map.class
+                        implementation = ResponseAPI.class
                     )
                 )
             ),
             @ApiResponse(
                 responseCode = "404",
-                description = "Produto não encontrado para o ID informado",
+                description = "Produto não encontrado para o ID especificado.",
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Map.class
+                        implementation = ResponseAPI.class
                     )
                 )
             )
         }
     )
     @PutMapping("/{id}")
-    public ResponseEntity<Produto> putProduto(
+    public ResponseEntity<ResponseAPI<Produto>> putProduto(
         @Parameter(
             description = "ID do produto a ser atualizado."
         )
@@ -220,23 +284,43 @@ public class ProdutoController {
                 )
             )
         )
-        @RequestBody ProdutoUpdateDTO produtoRequest
+        @Valid @RequestBody ProdutoUpdateDTO produtoRequest
     ) {
-        Produto produtoAtualizado = this.produtoService.atualizarProdutoPorID(id, produtoRequest.toProduto());
-        return ResponseEntity.ok(produtoAtualizado);
+        ResponseAPI<Produto> responseAPI = new ResponseAPI<>();
+        
+        try {
+            Produto produtoAtualizado = this.produtoService.atualizarProdutoPorID(id, produtoRequest.toProduto());
+            
+            responseAPI.setCode(HttpStatus.OK.value());
+            responseAPI.setStatus("sucesso");
+            responseAPI.setMessage("Produto atualizado com sucesso!");
+            responseAPI.setData(produtoAtualizado);
+            
+            return ResponseEntity.ok().body(responseAPI);
+            
+        } catch (NotFoundException e) {
+            
+            responseAPI.setCode(HttpStatus.NOT_FOUND.value());
+            responseAPI.setStatus("erro");
+            responseAPI.setMessage("Produto não encontrado!");
+            
+            return ResponseEntity.status(HttpStatus.NOT_FOUND.value()).body(responseAPI);
+            
+        }
     }
-
+    
+    
     @Operation(
         summary = "Excluir produto",
         description = "Deleta o produto especificado.",
         responses = {
             @ApiResponse(
-                responseCode = "204",
+                responseCode = "200",
                 description = "Produto excluído com sucesso.",
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Map.class
+                        implementation = ResponseAPI.class
                     )
                 )
             ),
@@ -246,19 +330,38 @@ public class ProdutoController {
                 content = @Content(
                     mediaType = "application/json",
                     schema = @Schema(
-                        implementation = Map.class
+                        implementation = ResponseAPI.class
                     )
                 )
             )
         }
     )
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> deleteProduto(
+    public ResponseEntity<ResponseAPI<Void>> deleteProduto(
         @Parameter(
             description = "ID do produto a ser excluído"
         )
-        @PathVariable Long id) {
-        this.produtoService.deletarProduto(id);
-        return ResponseEntity.noContent().build();
+        @PathVariable Long id
+    ) {
+        ResponseAPI<Void> responseAPI = new ResponseAPI<>();
+        
+        try {
+            this.produtoService.deletarProduto(id);
+            
+            responseAPI.setCode(HttpStatus.OK.value());
+            responseAPI.setStatus("sucesso");
+            responseAPI.setMessage("Exclusão realizada com sucesso!");
+            
+            return ResponseEntity.ok().body(responseAPI);
+            
+        } catch (NotFoundException e) {
+            
+            responseAPI.setCode(HttpStatus.NOT_FOUND.value());
+            responseAPI.setStatus("erro");
+            responseAPI.setMessage("Produto não encontrado!");
+            
+            return ResponseEntity.status(HttpStatus.NOT_FOUND.value()).body(responseAPI);
+        }
     }
+    
 }

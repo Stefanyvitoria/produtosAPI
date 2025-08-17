@@ -1,8 +1,7 @@
 package com.produtosapi.produtosAPI.controllers;
 
-import java.util.Map;
-
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -13,6 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.produtosapi.produtosAPI.dto.AuthResponse;
+import com.produtosapi.produtosAPI.dto.ResponseAPI;
 import com.produtosapi.produtosAPI.dto.UsuarioDTO;
 import com.produtosapi.produtosAPI.security.JwtUtil;
 
@@ -41,7 +41,7 @@ public class AuthController {
                 description = "Authenticação com sucesso",
                 content = @Content(
                     mediaType = "application/json",
-                    schema = @Schema(implementation = AuthResponse.class)
+                    schema = @Schema(implementation = ResponseAPI.class)
                 )
             ),
             @ApiResponse(
@@ -49,13 +49,13 @@ public class AuthController {
                 description = "Authenticação Falhou.",
                 content = @Content(
                     mediaType = "application/json",
-                    schema = @Schema(implementation = Map.class)
+                    schema = @Schema(implementation = ResponseAPI.class)
                 )
             )
         }
     )
     @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(
+    public ResponseEntity<ResponseAPI<AuthResponse>> login(
         @io.swagger.v3.oas.annotations.parameters.RequestBody(
             description = "Dados do usuário para autenticação.",
             required = true,
@@ -67,6 +67,9 @@ public class AuthController {
         )
         @RequestBody UsuarioDTO usuarioRequest
     ) {
+        
+        ResponseAPI<AuthResponse> responseAPI = new ResponseAPI<>();
+        
         try {
             // Autentica usuário no banco com a senha e username
             // Se falhar, lança AuthenticationException
@@ -79,10 +82,20 @@ public class AuthController {
             
             String token = jwtUtil.generateToken(usuarioRequest.getUsername());
             
-            return ResponseEntity.ok(new AuthResponse(token));
+            responseAPI.setCode(HttpStatus.OK.value());
+            responseAPI.setStatus("sucesso");
+            responseAPI.setMessage("Autenticação realizada com sucesso!");
+            responseAPI.setData(new AuthResponse(token));
+            
+            return ResponseEntity.ok().body(responseAPI);
             
         } catch (AuthenticationException e) {
-            return ResponseEntity.status(401).build();
+            
+            responseAPI.setCode(HttpStatus.UNAUTHORIZED.value());
+            responseAPI.setStatus("erro");
+            responseAPI.setMessage("Autenticação não realizada! Usuário e senha incorretos.");
+            
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED.value()).body(responseAPI);
         }
     }
 }

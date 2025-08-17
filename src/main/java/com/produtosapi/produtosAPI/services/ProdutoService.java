@@ -3,6 +3,7 @@ package com.produtosapi.produtosAPI.services;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
@@ -22,40 +23,48 @@ public class ProdutoService {
         return this.produtoRepository.save(produto);
     }
     
-    public List<Produto> listar(String nome, String ordemStr) {
+    public List<Produto> listar(String nome, String ordemStr) throws NotFoundException {
         Sort sort = null;
-
+        
         if (ordemStr != null && !ordemStr.isBlank()) { // com ordenação
             ordemEnum ordem = ordemEnum.fromString(ordemStr);
             sort = (ordem == ordemEnum.DESC) ? Sort.by("preco").descending() : Sort.by("preco").ascending();
         }
-
+        
+        List<Produto> produtos;
+        
         if (nome != null && !nome.isBlank()) { // Filtra pelo nome
             
             if (sort != null) { // com ordenação
-                return produtoRepository.findByNomeContainingIgnoreCase(nome, sort);
+                produtos = produtoRepository.findByNomeContainingIgnoreCase(nome, sort);
             } else { // sem ordenação
-                return produtoRepository.findByNomeContainingIgnoreCase(nome);
+                produtos = produtoRepository.findByNomeContainingIgnoreCase(nome);
             }
             
         } else { // Sem filtro
             
             if (sort != null) { // com ordenação
-                return produtoRepository.findAll(sort);
+                produtos = produtoRepository.findAll(sort);
             } else { // sem ordenação
-                return produtoRepository.findAll();
+                produtos = produtoRepository.findAll();
             }
             
         }
+        
+        if (produtos.isEmpty()) {
+            throw new NotFoundException();
+        }
+        
+        return produtos;
     }
     
-    public Produto ObterProdutoPorID(Long id) {
-        Produto produto = this.produtoRepository.findById(id).orElse(new Produto());
-        return produto;
+    public Produto obterProdutoPorID(Long id) throws NotFoundException {
+        return this.produtoRepository.findById(id)
+            .orElseThrow(() -> new NotFoundException());
     }
     
-    public Produto atualizarProdutoPorID(Long id ,Produto produtoNovo) {
-        Produto produto = this.ObterProdutoPorID(id);
+    public Produto atualizarProdutoPorID(Long id ,Produto produtoNovo) throws NotFoundException {
+        Produto produto = this.obterProdutoPorID(id);
         
         if (produtoNovo.getNome() != null) produto.setNome(produtoNovo.getNome());
         if (produtoNovo.getDescricao() != null) produto.setDescricao(produtoNovo.getDescricao());
@@ -65,7 +74,9 @@ public class ProdutoService {
         return this.salvar(produto);
     }
     
-    public void deletarProduto(Long id) {
+    public void deletarProduto(Long id) throws NotFoundException {
+        this.obterProdutoPorID(id);
         this.produtoRepository.deleteById(id);
     }
+    
 }

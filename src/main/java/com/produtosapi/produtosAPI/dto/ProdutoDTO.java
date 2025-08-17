@@ -26,7 +26,7 @@ public class ProdutoDTO {
     @Min(value = 0, message = "quantidadeEstoque não pode ser negativo")
     private Integer quantidadeEstoque;
     
-    // Colocar no service
+    
     public Produto toProduto() {
         Produto produto = new Produto();
         
